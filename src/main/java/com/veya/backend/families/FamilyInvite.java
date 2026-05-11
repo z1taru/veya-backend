@@ -5,6 +5,8 @@ import com.veya.backend.common.enums.FamilyRole;
 import com.veya.backend.users.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -34,6 +36,7 @@ public class FamilyInvite {
     private User invitedBy;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "member_role")
     @Builder.Default
     private FamilyRole role = FamilyRole.MEMBER;
@@ -42,6 +45,7 @@ public class FamilyInvite {
     private String token;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "invite_status")
     @Builder.Default
     private InviteStatus status = InviteStatus.PENDING;

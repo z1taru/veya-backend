@@ -51,6 +51,7 @@ public class AiCommand {
     private String rawText;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "parsed_type", nullable = false, columnDefinition = "ai_parsed_type")
     @Builder.Default
     private AiParsedType parsedType = AiParsedType.UNKNOWN;
@@ -60,6 +61,7 @@ public class AiCommand {
     private String parsedPayload;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "ai_cmd_status")
     @Builder.Default
     private AiCommandStatus status = AiCommandStatus.PREVIEW;

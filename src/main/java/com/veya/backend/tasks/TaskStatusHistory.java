@@ -4,6 +4,8 @@ import com.veya.backend.common.enums.TaskStatus;
 import com.veya.backend.users.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -30,10 +32,12 @@ public class TaskStatusHistory {
     private User changedBy;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "old_status", columnDefinition = "task_status")
     private TaskStatus oldStatus;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "new_status", nullable = false, columnDefinition = "task_status")
     private TaskStatus newStatus;
 

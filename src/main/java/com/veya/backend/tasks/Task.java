@@ -7,7 +7,9 @@ import com.veya.backend.families.Family;
 import com.veya.backend.users.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -46,11 +48,13 @@ public class Task {
     private User assignee;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "task_status")
     @Builder.Default
     private TaskStatus status = TaskStatus.PENDING;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "task_priority")
     @Builder.Default
     private TaskPriority priority = TaskPriority.MEDIUM;
@@ -62,6 +66,7 @@ public class Task {
     private LocalTime dueTime;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(name = "repeat_type", nullable = false, columnDefinition = "repeat_type")
     @Builder.Default
     private RepeatType repeatType = RepeatType.NONE;

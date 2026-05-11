@@ -5,6 +5,8 @@ import com.veya.backend.common.enums.FamilyRole;
 import com.veya.backend.users.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -31,11 +33,13 @@ public class FamilyMember {
     private User user;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "member_role")
     @Builder.Default
     private FamilyRole role = FamilyRole.MEMBER;
 
     @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.NAMED_ENUM)
     @Column(nullable = false, columnDefinition = "member_status")
     @Builder.Default
     private FamilyMemberStatus status = FamilyMemberStatus.ACTIVE;
