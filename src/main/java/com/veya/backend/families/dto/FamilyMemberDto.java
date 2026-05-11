@@ -1,7 +1,7 @@
 package com.veya.backend.families.dto;
 
-import com.veya.backend.common.enums.MemberRole;
-import com.veya.backend.common.enums.MemberStatus;
+import com.veya.backend.common.enums.FamilyMemberStatus;
+import com.veya.backend.common.enums.FamilyRole;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -11,7 +11,7 @@ public record FamilyMemberDto(
                 String fullName,
                 String email,
                 String avatarUrl,
-                MemberRole role,
-                MemberStatus status,
+                FamilyRole role,
+                FamilyMemberStatus status,
                 Instant joinedAt) {
 }

@@ -30,11 +30,11 @@ public class TaskStatusHistory {
     private User changedBy;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "old_status")
+    @Column(name = "old_status", columnDefinition = "task_status")
     private TaskStatus oldStatus;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "new_status", nullable = false)
+    @Column(name = "new_status", nullable = false, columnDefinition = "task_status")
     private TaskStatus newStatus;
 
     @Column(columnDefinition = "TEXT")

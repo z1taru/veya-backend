@@ -9,8 +9,8 @@ import com.veya.backend.families.Family;
 import com.veya.backend.families.FamilyMember;
 import com.veya.backend.families.FamilyMemberRepository;
 import com.veya.backend.families.FamilyRepository;
-import com.veya.backend.common.enums.MemberRole;
-import com.veya.backend.common.enums.MemberStatus;
+import com.veya.backend.common.enums.FamilyMemberStatus;
+import com.veya.backend.common.enums.FamilyRole;
 import com.veya.backend.users.User;
 import com.veya.backend.users.UserRepository;
 import com.veya.backend.users.dto.UserDto;
@@ -62,8 +62,8 @@ public class AuthService {
         FamilyMember membership = FamilyMember.builder()
                 .family(family)
                 .user(user)
-                .role(MemberRole.OWNER)
-                .status(MemberStatus.ACTIVE)
+                .role(FamilyRole.OWNER)
+                .status(FamilyMemberStatus.ACTIVE)
                 .joinedAt(Instant.now())
                 .build();
         memberRepo.save(membership);

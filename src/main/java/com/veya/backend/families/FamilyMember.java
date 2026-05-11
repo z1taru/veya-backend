@@ -1,7 +1,7 @@
 package com.veya.backend.families;
 
-import com.veya.backend.common.enums.MemberRole;
-import com.veya.backend.common.enums.MemberStatus;
+import com.veya.backend.common.enums.FamilyMemberStatus;
+import com.veya.backend.common.enums.FamilyRole;
 import com.veya.backend.users.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -31,14 +31,14 @@ public class FamilyMember {
     private User user;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "member_role")
     @Builder.Default
-    private MemberRole role = MemberRole.MEMBER;
+    private FamilyRole role = FamilyRole.MEMBER;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "member_status")
     @Builder.Default
-    private MemberStatus status = MemberStatus.ACTIVE;
+    private FamilyMemberStatus status = FamilyMemberStatus.ACTIVE;
 
     @Column(name = "joined_at")
     private Instant joinedAt;

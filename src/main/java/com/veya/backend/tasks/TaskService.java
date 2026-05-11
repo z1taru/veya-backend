@@ -5,9 +5,8 @@ import com.veya.backend.common.enums.TaskStatus;
 import com.veya.backend.common.exception.ForbiddenException;
 import com.veya.backend.common.exception.ResourceNotFoundException;
 import com.veya.backend.families.Family;
-import com.veya.backend.families.FamilyMember;
-import com.veya.backend.families.FamilyMemberRepository;
-import com.veya.backend.families.FamilyRepository;
+import com.veya.backend.families.FamilyService;
+import com.veya.backend.notifications.NotificationService;
 import com.veya.backend.tasks.dto.*;
 import com.veya.backend.users.User;
 import com.veya.backend.users.UserRepository;
@@ -25,12 +24,9 @@ public class TaskService {
 
     private final TaskRepository taskRepo;
     private final TaskStatusHistoryRepository historyRepo;
-    private final FamilyMemberRepository memberRepo;
-    private final FamilyRepository familyRepo;
+    private final FamilyService familyService;
     private final UserRepository userRepo;
-
-    // TODO: inject NotificationService here when it's created
-    // private final NotificationService notificationService;
+    private final NotificationService notificationService;
 
     // ── List ──────────────────────────────────────────────────
 
@@ -40,7 +36,7 @@ public class TaskService {
             UUID creatorId,
             LocalDate dueDate,
             TaskPriority priority) {
-        UUID familyId = getActiveFamilyId(requesterId);
+        UUID familyId = familyService.getActiveFamilyId(requesterId);
         return taskRepo.findByFamilyWithFilters(familyId, status, assigneeId, creatorId, dueDate, priority)
                 .stream()
                 .map(this::toDto)
@@ -51,7 +47,7 @@ public class TaskService {
 
     public TaskDto getTask(UUID taskId, UUID requesterId) {
         Task task = findTaskById(taskId);
-        assertFamilyMember(task.getFamily().getId(), requesterId);
+        familyService.assertMember(task.getFamily().getId(), requesterId);
         return toDto(task);
     }
 
@@ -61,17 +57,15 @@ public class TaskService {
     public TaskDto createTask(CreateTaskRequest req, UUID requesterId) {
         // Determine family: use familyId from request or fall back to requester's
         // active family
-        UUID familyId = (req.familyId() != null) ? req.familyId() : getActiveFamilyId(requesterId);
-        assertFamilyMember(familyId, requesterId);
+        UUID familyId = (req.familyId() != null) ? req.familyId() : familyService.getActiveFamilyId(requesterId);
+        familyService.assertMember(familyId, requesterId);
 
-        Family family = familyRepo.findById(familyId)
-                .orElseThrow(() -> new ResourceNotFoundException("Family", familyId));
+        Family family = familyService.getFamilyEntity(familyId);
         User creator = getUser(requesterId);
 
-        // Validate assignee belongs to family
         User assignee = null;
         if (req.assigneeId() != null) {
-            assertFamilyMember(familyId, req.assigneeId());
+            familyService.assertMember(familyId, req.assigneeId());
             assignee = getUser(req.assigneeId());
         }
 
@@ -82,7 +76,7 @@ public class TaskService {
                 .creator(creator)
                 .assignee(assignee)
                 .status(TaskStatus.PENDING)
-                .priority(req.priority() != null ? req.priority() : com.veya.backend.common.enums.TaskPriority.MEDIUM)
+                .priority(req.priority() != null ? req.priority() : TaskPriority.MEDIUM)
                 .dueDate(req.dueDate())
                 .dueTime(req.dueTime())
                 .repeatType(req.repeatType() != null ? req.repeatType() : com.veya.backend.common.enums.RepeatType.NONE)
@@ -93,10 +87,7 @@ public class TaskService {
         // Record initial history entry
         saveHistory(task, null, TaskStatus.PENDING, creator, "Task created");
 
-        // TODO: send notification to assignee when NotificationService is available
-        // if (assignee != null) {
-        // notificationService.notifyTaskAssigned(task, assignee);
-        // }
+        notificationService.notifyTaskAssigned(task);
 
         return toDto(task);
     }
@@ -106,7 +97,8 @@ public class TaskService {
     @Transactional
     public TaskDto updateTask(UUID taskId, UpdateTaskRequest req, UUID requesterId) {
         Task task = findTaskById(taskId);
-        assertFamilyMember(task.getFamily().getId(), requesterId);
+        familyService.assertMember(task.getFamily().getId(), requesterId);
+        assertCanManageTask(task, requesterId);
 
         if (req.title() != null && !req.title().isBlank()) {
             task.setTitle(req.title());
@@ -129,7 +121,7 @@ public class TaskService {
 
         // Reassign — validate new assignee is family member
         if (req.assigneeId() != null) {
-            assertFamilyMember(task.getFamily().getId(), req.assigneeId());
+            familyService.assertMember(task.getFamily().getId(), req.assigneeId());
             task.setAssignee(getUser(req.assigneeId()));
         }
 
@@ -141,7 +133,8 @@ public class TaskService {
     @Transactional
     public TaskDto updateTaskStatus(UUID taskId, UpdateTaskStatusRequest req, UUID requesterId) {
         Task task = findTaskById(taskId);
-        assertFamilyMember(task.getFamily().getId(), requesterId);
+        familyService.assertMember(task.getFamily().getId(), requesterId);
+        assertCanChangeStatus(task, requesterId);
 
         TaskStatus oldStatus = task.getStatus();
         task.setStatus(req.status());
@@ -150,9 +143,7 @@ public class TaskService {
         User changer = getUser(requesterId);
         saveHistory(task, oldStatus, req.status(), changer, req.comment());
 
-        // TODO: notify relevant users when NotificationService is available
-        // notificationService.notifyTaskStatusChanged(task, oldStatus, req.status(),
-        // changer);
+        notificationService.notifyTaskStatusChanged(task, oldStatus, req.status(), changer.getId());
 
         return toDto(task);
     }
@@ -162,14 +153,8 @@ public class TaskService {
     @Transactional
     public void deleteTask(UUID taskId, UUID requesterId) {
         Task task = findTaskById(taskId);
-        assertFamilyMember(task.getFamily().getId(), requesterId);
-        // Only creator or family owner can delete
-        boolean isCreator = task.getCreator().getId().equals(requesterId);
-        boolean isOwner = task.getFamily().getOwner() != null
-                && task.getFamily().getOwner().getId().equals(requesterId);
-        if (!isCreator && !isOwner) {
-            throw new ForbiddenException("Only the task creator or family owner can delete this task");
-        }
+        familyService.assertMember(task.getFamily().getId(), requesterId);
+        assertCanManageTask(task, requesterId);
         taskRepo.delete(task);
     }
 
@@ -177,7 +162,7 @@ public class TaskService {
 
     public List<TaskStatusHistoryDto> getHistory(UUID taskId, UUID requesterId) {
         Task task = findTaskById(taskId);
-        assertFamilyMember(task.getFamily().getId(), requesterId);
+        familyService.assertMember(task.getFamily().getId(), requesterId);
         return historyRepo.findByTaskIdOrderByCreatedAtAsc(taskId)
                 .stream()
                 .map(this::toHistoryDto)
@@ -196,28 +181,6 @@ public class TaskService {
                 .orElseThrow(() -> new ResourceNotFoundException("User", userId));
     }
 
-    /**
-     * Returns the familyId of the user's active membership.
-     * Throws if the user has no active membership.
-     */
-    private UUID getActiveFamilyId(UUID userId) {
-        return memberRepo.findActiveByUserId(userId)
-                .map(fm -> fm.getFamily().getId())
-                .orElseThrow(() -> new ForbiddenException("User has no active family membership"));
-    }
-
-    /**
-     * Throws ForbiddenException if the user is not an active member of the family.
-     */
-    private void assertFamilyMember(UUID familyId, UUID userId) {
-        boolean isMember = memberRepo.findByFamilyIdAndUserId(familyId, userId)
-                .map(fm -> fm.getStatus() == com.veya.backend.common.enums.MemberStatus.ACTIVE)
-                .orElse(false);
-        if (!isMember) {
-            throw new ForbiddenException("You are not a member of this family");
-        }
-    }
-
     private void saveHistory(Task task, TaskStatus oldStatus, TaskStatus newStatus,
             User changedBy, String comment) {
         TaskStatusHistory history = TaskStatusHistory.builder()
@@ -228,6 +191,23 @@ public class TaskService {
                 .comment(comment)
                 .build();
         historyRepo.save(history);
+    }
+
+    private void assertCanManageTask(Task task, UUID requesterId) {
+        boolean isCreator = task.getCreator().getId().equals(requesterId);
+        boolean isOwnerOrParent = familyService.isOwnerOrParent(task.getFamily().getId(), requesterId);
+        if (!isCreator && !isOwnerOrParent) {
+            throw new ForbiddenException("Only the task creator, family owner, or parent can manage this task");
+        }
+    }
+
+    private void assertCanChangeStatus(Task task, UUID requesterId) {
+        boolean isAssignee = task.getAssignee() != null && task.getAssignee().getId().equals(requesterId);
+        boolean isCreator = task.getCreator().getId().equals(requesterId);
+        boolean isOwnerOrParent = familyService.isOwnerOrParent(task.getFamily().getId(), requesterId);
+        if (!isAssignee && !isCreator && !isOwnerOrParent) {
+            throw new ForbiddenException("Only the assignee, creator, family owner, or parent can update task status");
+        }
     }
 
     private TaskDto toDto(Task t) {

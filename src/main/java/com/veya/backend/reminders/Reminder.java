@@ -1,12 +1,25 @@
-package com.veya.backend.tasks;
+package com.veya.backend.reminders;
 
 import com.veya.backend.common.enums.RepeatType;
-import com.veya.backend.common.enums.TaskPriority;
 import com.veya.backend.common.enums.TaskStatus;
 import com.veya.backend.families.Family;
 import com.veya.backend.users.User;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.Instant;
@@ -15,13 +28,13 @@ import java.time.LocalTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "tasks")
+@Table(name = "reminders")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Task {
+public class Reminder {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
@@ -45,26 +58,25 @@ public class Task {
     @JoinColumn(name = "assignee_id")
     private User assignee;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "task_status")
-    @Builder.Default
-    private TaskStatus status = TaskStatus.PENDING;
+    @Column(name = "reminder_date")
+    private LocalDate reminderDate;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "task_priority")
-    @Builder.Default
-    private TaskPriority priority = TaskPriority.MEDIUM;
-
-    @Column(name = "due_date")
-    private LocalDate dueDate;
-
-    @Column(name = "due_time")
-    private LocalTime dueTime;
+    @Column(name = "reminder_time")
+    private LocalTime reminderTime;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "repeat_type", nullable = false, columnDefinition = "repeat_type")
     @Builder.Default
     private RepeatType repeatType = RepeatType.NONE;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "task_status")
+    @Builder.Default
+    private TaskStatus status = TaskStatus.PENDING;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default

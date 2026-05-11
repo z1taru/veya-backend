@@ -34,7 +34,7 @@ public class User {
     private String avatarUrl;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "user_status")
     @Builder.Default
     private UserStatus status = UserStatus.ACTIVE;
 

@@ -1,7 +1,7 @@
 package com.veya.backend.families;
 
 import com.veya.backend.common.enums.InviteStatus;
-import com.veya.backend.common.enums.MemberRole;
+import com.veya.backend.common.enums.FamilyRole;
 import com.veya.backend.users.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -34,15 +34,15 @@ public class FamilyInvite {
     private User invitedBy;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "member_role")
     @Builder.Default
-    private MemberRole role = MemberRole.MEMBER;
+    private FamilyRole role = FamilyRole.MEMBER;
 
     @Column(nullable = false, unique = true)
     private String token;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "invite_status")
     @Builder.Default
     private InviteStatus status = InviteStatus.PENDING;
 

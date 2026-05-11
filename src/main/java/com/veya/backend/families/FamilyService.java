@@ -1,8 +1,8 @@
 package com.veya.backend.families;
 
 import com.veya.backend.common.enums.InviteStatus;
-import com.veya.backend.common.enums.MemberRole;
-import com.veya.backend.common.enums.MemberStatus;
+import com.veya.backend.common.enums.FamilyMemberStatus;
+import com.veya.backend.common.enums.FamilyRole;
 import com.veya.backend.common.exception.ConflictException;
 import com.veya.backend.common.exception.ForbiddenException;
 import com.veya.backend.common.exception.ResourceNotFoundException;
@@ -44,15 +44,15 @@ public class FamilyService {
 
     public List<FamilyMemberDto> getMembers(UUID familyId, UUID requesterId) {
         assertMember(familyId, requesterId);
-        return memberRepo.findByFamilyIdAndStatus(familyId, MemberStatus.ACTIVE)
+        return memberRepo.findByFamilyIdAndStatus(familyId, FamilyMemberStatus.ACTIVE)
                 .stream().map(this::toMemberDto).toList();
     }
 
     // ── Invites ───────────────────────────────────────────────
 
     @Transactional
-    public FamilyInvite invite(UUID familyId, String email, MemberRole role, UUID inviterId) {
-        assertMember(familyId, inviterId);
+    public FamilyInvite invite(UUID familyId, String email, FamilyRole role, UUID inviterId) {
+        assertOwnerOrParent(familyId, inviterId);
 
         // Check if user already a member
         userRepo.findByEmail(email).ifPresent(u -> {
@@ -94,7 +94,7 @@ public class FamilyService {
                 .family(invite.getFamily())
                 .user(user)
                 .role(invite.getRole())
-                .status(MemberStatus.ACTIVE)
+                .status(FamilyMemberStatus.ACTIVE)
                 .joinedAt(Instant.now())
                 .build();
 
@@ -118,7 +118,7 @@ public class FamilyService {
     // ── Member management ─────────────────────────────────────
 
     @Transactional
-    public FamilyMemberDto updateMemberRole(UUID familyId, UUID memberId, MemberRole role, UUID requesterId) {
+    public FamilyMemberDto updateMemberRole(UUID familyId, UUID memberId, FamilyRole role, UUID requesterId) {
         Family family = getFamily(familyId);
         assertOwner(family, requesterId);
 
@@ -128,8 +128,11 @@ public class FamilyService {
         if (!member.getFamily().getId().equals(familyId)) {
             throw new ForbiddenException("Member does not belong to this family");
         }
-        if (member.getRole() == MemberRole.OWNER) {
+        if (member.getRole() == FamilyRole.OWNER) {
             throw new ForbiddenException("Cannot change owner role");
+        }
+        if (role == FamilyRole.OWNER) {
+            throw new ForbiddenException("Cannot assign owner role");
         }
 
         member.setRole(role);
@@ -144,11 +147,14 @@ public class FamilyService {
         FamilyMember member = memberRepo.findById(memberId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member", memberId));
 
-        if (member.getRole() == MemberRole.OWNER) {
+        if (!member.getFamily().getId().equals(familyId)) {
+            throw new ForbiddenException("Member does not belong to this family");
+        }
+        if (member.getRole() == FamilyRole.OWNER) {
             throw new ForbiddenException("Cannot remove owner");
         }
 
-        member.setStatus(MemberStatus.REMOVED);
+        member.setStatus(FamilyMemberStatus.REMOVED);
         memberRepo.save(member);
     }
 
@@ -160,14 +166,37 @@ public class FamilyService {
     }
 
     /** Throws if user is not an active member of the family */
-    public void assertMember(UUID familyId, UUID userId) {
-        memberRepo.findByFamilyIdAndUserId(familyId, userId)
-                .filter(m -> m.getStatus() == MemberStatus.ACTIVE)
+    public FamilyMember assertMember(UUID familyId, UUID userId) {
+        return memberRepo.findByFamilyIdAndUserId(familyId, userId)
+                .filter(m -> m.getStatus() == FamilyMemberStatus.ACTIVE)
                 .orElseThrow(() -> new ForbiddenException("You are not a member of this family"));
     }
 
+    public FamilyMember assertOwnerOrParent(UUID familyId, UUID userId) {
+        FamilyMember membership = assertMember(familyId, userId);
+        if (membership.getRole() != FamilyRole.OWNER && membership.getRole() != FamilyRole.PARENT) {
+            throw new ForbiddenException("Only owner or parent can perform this action");
+        }
+        return membership;
+    }
+
+    public boolean isOwnerOrParent(UUID familyId, UUID userId) {
+        return memberRepo.findByFamilyIdAndUserId(familyId, userId)
+                .filter(m -> m.getStatus() == FamilyMemberStatus.ACTIVE)
+                .map(m -> m.getRole() == FamilyRole.OWNER || m.getRole() == FamilyRole.PARENT)
+                .orElse(false);
+    }
+
+    public UUID getActiveFamilyId(UUID userId) {
+        return getActiveMembership(userId).getFamily().getId();
+    }
+
+    public Family getFamilyEntity(UUID id) {
+        return getFamily(id);
+    }
+
     /** Throws if user is not the owner */
-    private void assertOwner(Family family, UUID userId) {
+    public void assertOwner(Family family, UUID userId) {
         if (!family.getOwner().getId().equals(userId)) {
             throw new ForbiddenException("Only the family owner can perform this action");
         }
