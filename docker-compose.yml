@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: veya-postgres
+    environment:
+      POSTGRES_DB: veya
+      POSTGRES_USER: veya
+      POSTGRES_PASSWORD: veya_secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - veya_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U veya -d veya"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: .
+    container_name: veya-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/veya
+      SPRING_DATASOURCE_USERNAME: veya
+      SPRING_DATASOURCE_PASSWORD: veya_secret
+      JWT_SECRET: veya-super-secret-jwt-key-change-in-production-min-256-bits
+      JWT_ACCESS_EXPIRATION_MS: 900000
+      JWT_REFRESH_EXPIRATION_MS: 604800000
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+volumes:
+  veya_pg_data:
