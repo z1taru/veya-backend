@@ -10,7 +10,11 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "task_status_history")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class TaskStatusHistory {
 
     @Id
